@@ -2,7 +2,9 @@
 
 ![M5 Web Booking](custom_components/m5webbooking/brand/logo.png)
 
-Custom Home Assistant integration for Electrolux M5 Web Booking, also known as ELS Boka Direkt.
+Home Assistant integration for Electrolux M5 Web Booking, also known as ELS Boka Direkt.
+
+***This is a third-party integration. It is not an official Electrolux integration and is not developed, maintained, or endorsed by Electrolux.***
 
 ## What It Does
 
