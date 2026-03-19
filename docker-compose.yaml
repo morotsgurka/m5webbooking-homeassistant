@@ -1,0 +1,15 @@
+services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    container_name: homeassistant
+    restart: unless-stopped
+    ports:
+      - "8123:8123"
+    environment:
+      - TZ=Europe/Stockholm
+    volumes:
+      - ./config:/config
+      - ./custom_components:/config/custom_components:rw
+      - /etc/localtime:/etc/localtime:ro
+    # use network_mode: "host" if you need mDNS/UPnP or direct access to host devices
+    # network_mode: "host"

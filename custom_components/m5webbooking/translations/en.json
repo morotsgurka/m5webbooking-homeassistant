@@ -1,0 +1,28 @@
+{
+  "config": {
+    "error": {
+      "cannot_connect": "Cannot connect to the M5 Web Booking endpoint.",
+      "invalid_auth": "Invalid username or password.",
+      "invalid_url": "Invalid endpoint URL.",
+      "unknown": "Unexpected error. Check logs for details."
+    },
+    "step": {
+      "user": {
+        "title": "M5 Web Booking",
+          "description": "Enter the endpoint for the M5 Web Booking instance. You can use either the host (for example http://11.222.33.40) or the full path (for example http://11.222.33.40/M5WebBokning).",
+          "data": {
+            "Address/Endpoint": "Address / Endpoint",
+            "Username": "Username",
+            "Password": "Password"
+          }
+      }
+    }
+  },
+  "entity": {
+    "calendar": {
+      "my_bookings": {
+        "name": "My bookings"
+      }
+    }
+  }
+}

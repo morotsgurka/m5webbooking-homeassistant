@@ -1,0 +1,28 @@
+{
+  "config": {
+    "error": {
+      "cannot_connect": "Kan inte ansluta till M5 Web Bokning.",
+      "invalid_auth": "Ogiltigt användarnamn eller lösenord.",
+      "invalid_url": "Ogiltig URL till M5 Web Bokning.",
+      "unknown": "Oväntat fel. Kolla log för detaljer."
+    },
+    "step": {
+      "user": {
+        "title": "M5 Web Bokning",
+          "description": "Ange IP-addressen eller domänen för M5 Web Bokning-instansen. Du kan använda antingen IP-adressen (till exempel http://11.222.33.40) eller den fullständiga sökvägen (till exempel http://11.222.33.40/M5WebBokning).",
+          "data": {
+            "Address/Endpoint": "Adress / IP-Address",
+            "Username": "Användarnamn",
+            "Password": "Lösenord"
+          }
+      }
+    }
+  },
+  "entity": {
+    "calendar": {
+      "my_bookings": {
+        "name": "Mina bokningar"
+      }
+    }
+  }
+}

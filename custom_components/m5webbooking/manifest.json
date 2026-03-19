@@ -1,0 +1,16 @@
+{
+  "domain": "m5webbooking",
+  "name": "M5 Web Booking",
+  "codeowners": [
+    "@morotsgurka"
+  ],
+  "config_flow": true,
+  "documentation": "https://github.com/morotsgurka/m5webbooking", 
+  "iot_class": "cloud_polling",
+  "issue_tracker": "https://github.com/morotsgurka/m5webbooking/issues",
+  "loggers": ["custom_components.m5webbooking"],
+  "requirements": [
+    "beautifulsoup4==4.12.3"
+  ],
+  "version": "1.0.0"
+}
