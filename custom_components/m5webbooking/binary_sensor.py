@@ -17,7 +17,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from . import M5RuntimeData
+from . import M5CoordinatorData, M5RuntimeData
 from .m5_client import RoomStatus
 
 
@@ -29,10 +29,10 @@ async def async_setup_entry(
     async_add_entities: AddEntitiesCallback,
 ) -> None:
     runtime_data: M5RuntimeData = entry.runtime_data
-    coordinator: DataUpdateCoordinator[list[RoomStatus]] = runtime_data.coordinator
+    coordinator: DataUpdateCoordinator[M5CoordinatorData] = runtime_data.coordinator
 
     # Create one health entity plus one entity per room based on current data
-    rooms = coordinator.data or []
+    rooms = coordinator.data.rooms if coordinator.data else []
     entities: list[BinarySensorEntity] = [M5ProblemBinarySensor(coordinator, entry)]
     entities.extend(
         M5RoomBinarySensor(coordinator, entry, room) for room in rooms
@@ -47,7 +47,7 @@ class M5ProblemBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator[list[RoomStatus]],
+        coordinator: DataUpdateCoordinator[M5CoordinatorData],
         entry: ConfigEntry,
     ) -> None:
         super().__init__(coordinator)
@@ -82,7 +82,7 @@ class M5RoomBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     def __init__(
         self,
-        coordinator: DataUpdateCoordinator[list[RoomStatus]],
+        coordinator: DataUpdateCoordinator[M5CoordinatorData],
         entry: ConfigEntry,
         room: RoomStatus,
     ) -> None:
@@ -99,7 +99,7 @@ class M5RoomBinarySensor(CoordinatorEntity, BinarySensorEntity):
     @property
     def is_on(self) -> bool:
         # Find this room in the latest coordinator data
-        rooms = self.coordinator.data or []
+        rooms = self.coordinator.data.rooms if self.coordinator.data else []
         for room in rooms:
             if room.name == self._room_name:
                 _LOGGER.debug("M5 %s: is_on evaluated to %s", self._room_name, room.occupied)
@@ -110,7 +110,7 @@ class M5RoomBinarySensor(CoordinatorEntity, BinarySensorEntity):
 
     @property
     def extra_state_attributes(self) -> dict[str, Any]:
-        rooms = self.coordinator.data or []
+        rooms = self.coordinator.data.rooms if self.coordinator.data else []
         current: RoomStatus | None = None
         for room in rooms:
             if room.name == self._room_name:

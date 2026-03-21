@@ -155,6 +155,34 @@ class M5Client:
         )
         return response
 
+    def _response_is_login(self, response: requests.Response, soup: BeautifulSoup) -> bool:
+        """Return True if a protected request ended up on the login page."""
+        return "default.aspx" in str(response.url).lower() or self._looks_like_login_page(soup)
+
+    def _invalidate_session(self) -> None:
+        """Drop the current HTTP session and force a fresh login on next request."""
+        self._session = None
+
+    def _get_protected_soup(self, url: str) -> BeautifulSoup:
+        """Fetch a protected page, re-authenticating once if session expired."""
+        session = self._ensure_session()
+        response = self._request(session, "get", url)
+        soup = BeautifulSoup(response.text, "html.parser")
+
+        if not self._response_is_login(response, soup):
+            return soup
+
+        _LOGGER.info("M5 session appears expired; attempting re-authentication")
+        self._invalidate_session()
+
+        session = self._ensure_session()
+        retry_response = self._request(session, "get", url)
+        retry_soup = BeautifulSoup(retry_response.text, "html.parser")
+        if self._response_is_login(retry_response, retry_soup):
+            raise M5InvalidAuthError("Re-authentication failed for protected page")
+
+        return retry_soup
+
     @staticmethod
     def _infer_year_for_month_day(month: int, day: int, reference: datetime | None = None) -> int:
         """Infer year for parsed month/day close to a reference date.
@@ -264,15 +292,11 @@ class M5Client:
         return session
 
     def _get_soup(self, url: str) -> BeautifulSoup:
-        session = self._ensure_session()
-        resp = self._request(session, "get", url)
-        return BeautifulSoup(resp.text, "html.parser")
+        return self._get_protected_soup(url)
 
     def fetch_status(self) -> List[RoomStatus]:
-        session = self._ensure_session()
         status_url = f"{self._base}/Machine/MachineGroupStat.aspx"
-        resp = self._request(session, "get", status_url)
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = self._get_protected_soup(status_url)
 
         boxes = soup.select("div[style*='border: thin solid'][style*='width: 365px']")
         rooms: List[RoomStatus] = []
@@ -418,9 +442,7 @@ class M5Client:
             return []
 
         calendar_url = f"{self._base}/Booking/BookingCalendar.aspx"
-        session = self._ensure_session()
-        resp = self._request(session, "get", calendar_url)
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = self._get_protected_soup(calendar_url)
 
         # Month and year
         month_label = soup.find("span", id=lambda i: i and i.endswith("lbCalendarDatum"))
@@ -543,10 +565,8 @@ class M5Client:
 
         Each dict has: date (str as shown on page), name (str), start (datetime), end (datetime).
         """
-        session = self._ensure_session()
         bookings_url = f"{self._base}/Booking/BookingMain.aspx"
-        resp = self._request(session, "get", bookings_url)
-        soup = BeautifulSoup(resp.text, "html.parser")
+        soup = self._get_protected_soup(bookings_url)
 
         table = soup.find("table", id="ctl00_ContentPlaceHolder1_DataGridBookings")
         if not table:
