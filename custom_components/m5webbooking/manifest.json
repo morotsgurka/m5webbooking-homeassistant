@@ -10,7 +10,7 @@
   "issue_tracker": "https://github.com/morotsgurka/m5webbooking/issues",
   "loggers": ["custom_components.m5webbooking"],
   "requirements": [
-    "beautifulsoup4==4.12.3"
+    "beautifulsoup4==4.13.3"
   ],
   "version": "1.2.0"
 }
