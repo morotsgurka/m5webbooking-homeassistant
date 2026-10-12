@@ -10,7 +10,7 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 from homeassistant.helpers.update_coordinator import CoordinatorEntity, DataUpdateCoordinator
 from homeassistant.util import dt as dt_util
 
-from . import M5CoordinatorData, M5RuntimeData
+from . import M5CoordinatorData, M5RuntimeData, device_info
 
 
 async def async_setup_entry(
@@ -22,7 +22,7 @@ async def async_setup_entry(
     coordinator: DataUpdateCoordinator[M5CoordinatorData] = runtime_data.coordinator
 
     # We only expose a single calendar with the current user's bookings.
-    async_add_entities([M5UserBookingsCalendar(coordinator, entry.entry_id)])
+    async_add_entities([M5UserBookingsCalendar(coordinator, entry)])
 
 
 class M5UserBookingsCalendar(CoordinatorEntity[M5CoordinatorData], CalendarEntity):
@@ -31,9 +31,10 @@ class M5UserBookingsCalendar(CoordinatorEntity[M5CoordinatorData], CalendarEntit
     _attr_translation_key = "my_bookings"
     _attr_has_entity_name = True
 
-    def __init__(self, coordinator: DataUpdateCoordinator[M5CoordinatorData], entry_id: str) -> None:
+    def __init__(self, coordinator: DataUpdateCoordinator[M5CoordinatorData], entry: ConfigEntry) -> None:
         super().__init__(coordinator)
-        self._attr_unique_id = f"m5_calendar_{entry_id}_my_bookings"
+        self._attr_unique_id = f"m5_calendar_{entry.entry_id}_my_bookings"
+        self._attr_device_info = device_info(entry)
         self._current_event: CalendarEvent | None = None
 
     @staticmethod

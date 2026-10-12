@@ -3,7 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timedelta
 import logging
-from typing import Dict, List
+import threading
+from typing import Callable, Dict, List
 from urllib.parse import urlparse
 
 import requests
@@ -93,6 +94,8 @@ class M5Client:
         self._password = password
         self._session: requests.Session | None = None
         self._request_timeout = 10
+        # Coordinator refresh and calendar refresh run in parallel executor threads.
+        self._lock = threading.RLock()
 
     @staticmethod
     def _normalize_base_url(address: str) -> str:
@@ -161,27 +164,44 @@ class M5Client:
 
     def _invalidate_session(self) -> None:
         """Drop the current HTTP session and force a fresh login on next request."""
-        self._session = None
+        with self._lock:
+            if self._session is not None:
+                self._session.close()
+            self._session = None
 
-    def _get_protected_soup(self, url: str) -> BeautifulSoup:
-        """Fetch a protected page, re-authenticating once if session expired."""
-        session = self._ensure_session()
-        response = self._request(session, "get", url)
-        soup = BeautifulSoup(response.text, "html.parser")
-
-        if not self._response_is_login(response, soup):
-            return soup
-
-        _LOGGER.info("M5 session appears expired; attempting re-authentication")
+    def invalidate_session(self) -> None:
+        """Public hook to force a fresh login on next request."""
         self._invalidate_session()
 
-        session = self._ensure_session()
-        retry_response = self._request(session, "get", url)
-        retry_soup = BeautifulSoup(retry_response.text, "html.parser")
-        if self._response_is_login(retry_response, retry_soup):
-            raise M5InvalidAuthError("Re-authentication failed for protected page")
+    def _get_protected_soup(
+        self,
+        url: str,
+        expected: Callable[[BeautifulSoup], bool] | None = None,
+    ) -> BeautifulSoup:
+        """Fetch a protected page, re-authenticating once if session expired.
 
-        return retry_soup
+        `expected` returns False when the page lacks content that a valid session shows.
+        """
+        with self._lock:
+            session = self._ensure_session()
+            response = self._request(session, "get", url)
+            soup = BeautifulSoup(response.text, "html.parser")
+
+            if not self._response_is_login(response, soup) and (
+                expected is None or expected(soup)
+            ):
+                return soup
+
+            _LOGGER.info("M5 session appears expired or page unexpected; re-authenticating")
+            self._invalidate_session()
+
+            session = self._ensure_session()
+            retry_response = self._request(session, "get", url)
+            retry_soup = BeautifulSoup(retry_response.text, "html.parser")
+            if self._response_is_login(retry_response, retry_soup):
+                raise M5InvalidAuthError("Re-authentication failed for protected page")
+
+            return retry_soup
 
     @staticmethod
     def _infer_year_for_month_day(month: int, day: int, reference: datetime | None = None) -> int:
@@ -287,7 +307,12 @@ class M5Client:
             "ctl00$ContentPlaceHolder1$tbPassword": self._password,
         }
 
-        self._request(session, "post", login_url, data=data)
+        login_resp = self._request(session, "post", login_url, data=data)
+        login_soup = BeautifulSoup(login_resp.text, "html.parser")
+        if self._looks_like_login_page(login_soup):
+            session.close()
+            raise M5InvalidAuthError("Login rejected")
+
         self._session = session
         return session
 
@@ -296,7 +321,12 @@ class M5Client:
 
     def fetch_status(self) -> List[RoomStatus]:
         status_url = f"{self._base}/Machine/MachineGroupStat.aspx"
-        soup = self._get_protected_soup(status_url)
+        soup = self._get_protected_soup(
+            status_url,
+            expected=lambda s: bool(
+                s.select("div[style*='border: thin solid'][style*='width: 365px']")
+            ),
+        )
 
         boxes = soup.select("div[style*='border: thin solid'][style*='width: 365px']")
         rooms: List[RoomStatus] = []
@@ -566,7 +596,11 @@ class M5Client:
         Each dict has: date (str as shown on page), name (str), start (datetime), end (datetime).
         """
         bookings_url = f"{self._base}/Booking/BookingMain.aspx"
-        soup = self._get_protected_soup(bookings_url)
+        soup = self._get_protected_soup(
+            bookings_url,
+            expected=lambda s: s.find("table", id="ctl00_ContentPlaceHolder1_DataGridBookings")
+            is not None,
+        )
 
         table = soup.find("table", id="ctl00_ContentPlaceHolder1_DataGridBookings")
         if not table:

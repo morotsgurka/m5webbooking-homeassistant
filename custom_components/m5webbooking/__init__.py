@@ -6,6 +6,7 @@ import logging
 from typing import Any
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
+from homeassistant.helpers.device_registry import DeviceInfo
 from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
     UpdateFailed,
@@ -44,6 +45,16 @@ class M5CoordinatorData:
 def _client_cache_key(address: str, username: str, password: str) -> tuple[str, str, str]:
     return (address, username, password)
 
+
+def device_info(entry: M5ConfigEntry) -> DeviceInfo:
+    """Single device shared by all entities of a config entry."""
+    return DeviceInfo(
+        identifiers={(DOMAIN, entry.entry_id)},
+        name="M5 WebBooking",
+        manufacturer="M5",
+        configuration_url=entry.data[CONF_ADDRESS],
+    )
+
 async def async_setup_entry(hass: HomeAssistant, entry: M5ConfigEntry) -> bool:
     address = entry.data[CONF_ADDRESS]
     username = entry.data[CONF_USERNAME]
@@ -70,6 +81,7 @@ async def async_setup_entry(hass: HomeAssistant, entry: M5ConfigEntry) -> bool:
 
             return await hass.async_add_executor_job(_fetch)
         except Exception as err:
+            client.invalidate_session()
             raise UpdateFailed(str(err)) from err
 
     coordinator = DataUpdateCoordinator[M5CoordinatorData](

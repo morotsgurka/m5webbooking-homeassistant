@@ -17,7 +17,7 @@ from homeassistant.helpers.update_coordinator import (
     DataUpdateCoordinator,
 )
 
-from . import M5CoordinatorData, M5RuntimeData
+from . import M5CoordinatorData, M5RuntimeData, device_info
 from .m5_client import RoomStatus
 
 
@@ -54,6 +54,7 @@ class M5ProblemBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._entry = entry
         self._attr_unique_id = f"m5_{entry.entry_id}_problem"
         self._attr_name = "M5 Problem"
+        self._attr_device_info = device_info(entry)
 
     @property
     def available(self) -> bool:
@@ -95,6 +96,7 @@ class M5RoomBinarySensor(CoordinatorEntity, BinarySensorEntity):
         self._attr_unique_id = f"m5_{self._entry.entry_id}_{slug}"
         # Friendly name and base for entity_id include the M5 prefix
         self._attr_name = f"M5 {self._room_name}"
+        self._attr_device_info = device_info(entry)
 
     @property
     def is_on(self) -> bool:
